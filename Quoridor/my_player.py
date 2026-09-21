@@ -34,25 +34,24 @@ class MyPlayer(PlayerQuoridor):
         Returns:
             Action: The best action as determined by minimax.
         """
+        meilleure_action = None
         negatif = 1
         delta = current_state._shortest_path(current_state.players[0]) - current_state._shortest_path(current_state.players[1])
         if current_state.active_player.id == current_state.players[1].id:
             negatif = -1    
             delta *= negatif
-        
         walls = tuple(current_state._legal_walls())
+        print(walls)
         moves = tuple(current_state._legal_moves())
         bestwdelta = 100
         bestmdelta = 100
-        if delta > 0 and walls != []:
+        if delta > 0 and walls != None:
             for wall in walls:
                 wstate = current_state.apply_action(wall)
-                wdelta = wstate._shortest_path(current_state.players[0])-wstate._shortest_path(current_state.players[1])
-                wdelta*= negatif
+                wdelta = negatif*(wstate._shortest_path(current_state.players[0])-wstate._shortest_path(current_state.players[1])) - 0.5*wstate._shortest_path(wstate.active_player)
                 if wdelta < bestwdelta:
                     bestwdelta = wdelta
                     meilleure_action = wall
-
         else:
             for move in moves:
                 mstate = current_state.apply_action(move)
@@ -61,5 +60,7 @@ class MyPlayer(PlayerQuoridor):
                 if mdelta < bestmdelta:
                     bestmdelta = mdelta
                     meilleure_action = move
-        
+
+        if meilleure_action == None:
+            meilleure_action = moves[0]
         return meilleure_action
