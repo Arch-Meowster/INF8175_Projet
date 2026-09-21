@@ -1,3 +1,5 @@
+import actions_quoridor
+import game_state_quoridor
 from player_quoridor import PlayerQuoridor
 from seahorse.game.action import Action
 from game_state_quoridor import GameStateQuoridor
@@ -11,7 +13,7 @@ class MyPlayer(PlayerQuoridor):
         piece_type (str): piece type of the player
     """
 
-    def __init__(self, piece_type: str, goal_row: int=0, name: str = "bob", *args, **kwargs) -> None:
+    def __init__(self, piece_type: str, goal_row: int=0, name: str = "Meowster", *args, **kwargs) -> None:
         """
         Initialize the PlayerQuoridor instance.
 
@@ -32,6 +34,32 @@ class MyPlayer(PlayerQuoridor):
         Returns:
             Action: The best action as determined by minimax.
         """
+        negatif = 1
+        delta = current_state._shortest_path(current_state.players[0]) - current_state._shortest_path(current_state.players[1])
+        if current_state.active_player.id == current_state.players[1].id:
+            negatif = -1    
+            delta *= negatif
+        
+        walls = tuple(current_state._legal_walls())
+        moves = tuple(current_state._legal_moves())
+        bestwdelta = 100
+        bestmdelta = 100
+        if delta > 0 and walls != []:
+            for wall in walls:
+                wstate = current_state.apply_action(wall)
+                wdelta = wstate._shortest_path(current_state.players[0])-wstate._shortest_path(current_state.players[1])
+                wdelta*= negatif
+                if wdelta < bestwdelta:
+                    bestwdelta = wdelta
+                    meilleure_action = wall
 
-        #TODO
-        raise MethodNotImplementedError()
+        else:
+            for move in moves:
+                mstate = current_state.apply_action(move)
+                mdelta = mstate._shortest_path(current_state.players[0])-mstate._shortest_path(current_state.players[1])
+                mdelta*= negatif
+                if mdelta < bestmdelta:
+                    bestmdelta = mdelta
+                    meilleure_action = move
+        
+        return meilleure_action
