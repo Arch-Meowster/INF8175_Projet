@@ -18,7 +18,7 @@ def dist_estimee (state: GameStateQuoridor, player):
         murs_restants_adv = remaining_walls[state.players[1].id]
     else :
         murs_restants_adv = remaining_walls[state.players[0].id]
-    return chemin + murs_restants_adv
+    return chemin
 # 2.5 a revérifier par regression linéaire et ajuster avec gamestate par ML
 
 
@@ -33,15 +33,55 @@ def actions_utiles(state: GameStateQuoridor, eloigne):
     positions = state.rep.pawn_positions
     murs_valides = []
     for mur in murs_possibles:
+            
+        rowmur = mur.data["destination"][0]
+        colmur = mur.data["destination"][1]
+    
         for objet in murs_present:
-            if mur.data["destination"][0] < objet.row + eloigne + 1 and mur.data["destination"][0] > objet.row - eloigne - 1 and mur.data["destination"][1]  < objet.col + eloigne + 1 and mur.data["destination"][1] > objet.col - eloigne - 1:
-                murs_valides.append(mur)
-                break
+
+            cobjet = objet.col
+            robjet = objet.row
+            
+            if mur.data["type"] == 'horizontal':              
+                if objet.orientation == 'horizontal':
+                    if (colmur == cobjet - 2 or colmur == cobjet + 2) and rowmur == robjet :
+                        murs_valides.append(mur)
+                        print(mur.data["destination"])
+                        break
+                    if (rowmur == robjet - 1 or rowmur == robjet + 1) and colmur == cobjet:
+                        murs_valides.append(mur)
+                        break
+                else :
+                    if (colmur == cobjet or colmur == cobjet - 2) and rowmur <= robjet + 2 and rowmur >= robjet :
+                        murs_valides.append(mur)
+                        break
+
+            else :
+                if objet.orientation == 'horizontal':
+                    if (rowmur == robjet or rowmur == robjet - 2) and colmur <= cobjet + 2 and colmur >= cobjet :
+                        murs_valides.append(mur)
+                        break
+                else :
+                    if (rowmur == robjet - 2 or rowmur == robjet + 2) and colmur == cobjet :
+                        murs_valides.append(mur)
+                        break
+                    if (colmur == cobjet - 1 or colmur == cobjet + 1) and rowmur == robjet :
+                        murs_valides.append(mur)
+                        break
+                    
         for objet in positions:
             pos = positions[objet]
-            if mur.data["destination"][0] < pos[0] + eloigne and mur.data["destination"][0] > pos[0] - eloigne - 1 and mur.data["destination"][1] < pos[1] + eloigne and mur.data["destination"][1] > pos[1] - eloigne - 1:
-                murs_valides.append(mur)
-                break
+            rpos = pos[0]
+            cpos = pos[1]
+            if mur.data["type"] == "horizontal" :
+                if (rowmur == rpos or rowmur == rpos - 1) and (colmur == cpos-1 or colmur == cpos -2):
+                    murs_valides.append(mur)
+                    break
+            else :
+                if (colmur == cpos or colmur == cpos - 1) and (rowmur == rpos-1 or rowmur == rpos -2):
+                    murs_valides.append(mur)
+                    break               
+    print(len(tuple(murs_valides) + mouvements))
     return tuple(murs_valides) + mouvements
 
 
@@ -148,17 +188,37 @@ class MyPlayer(PlayerQuoridor):
         else : 
             inverse = 1
         
+        '''
+        #Opening
+        if current_state.get_step()/2 < 3:
 
-        #Coups initiaux
+            moves = tuple(current_state._legal_moves())
+            for move in moves:
+                newstate = current_state.apply_action(move)
+                if newstate._shortest_path(current_state.active_player) < current_state._shortest_path(current_state.active player):
+                    meilleure_action = move
+            
+            
 
+        elif current_state.get_step()/2 == 3 or current_state()/2 == 3.5:
+            if inverse == 1:
+                if 
+
+
+
+        #Minimax
+        else:
+        '''
         beta = 1000
         alpha = -1000
         depth = 3
         #Minimax
         resultat = minimax(current_state, True, alpha, beta, depth, inverse)
         meilleure_action = resultat[1]
+    
+
         return meilleure_action
-        
+            
         
 
 
