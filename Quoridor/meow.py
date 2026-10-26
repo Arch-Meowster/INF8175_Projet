@@ -78,7 +78,7 @@ def gen_actions_utiles(state, player):
         
         for r, c, o in candidats:
             
-            if o == V and  or (c==0 or c==9):
+            if o == V and (c==0 or c==9):
                 continue
             if o == H and (r==0 or r==9):
                 continue
@@ -235,4 +235,3 @@ class MyPlayer(PlayerQuoridor):
 
         
         #minimax
-            
