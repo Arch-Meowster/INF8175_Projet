@@ -5,6 +5,7 @@ from player_quoridor import PlayerQuoridor
 from seahorse.game.action import Action
 from game_state_quoridor import GameStateQuoridor
 from seahorse.utils.custom_exceptions import MethodNotImplementedError
+import time
 
 
 """
@@ -43,13 +44,15 @@ Only compute walls that are sticked to player or other wall + 1 space and 1 spac
 H, V = actions_quoridor.Orientation.HORIZONTAL, actions_quoridor.Orientation.VERTICAL
 #***)
 
-def gen_actions_utiles(state, player):
+def gen_actions_utiles(state, player, remaining_time, time_start):
+
+    time_left = remaining_time - (time.perf_counter() - time_start)
     mouvements = tuple(state._legal_moves())
     candidats = set()
     Wall = actions_quoridor.Wall
 
     #***(
-    if state.rep.remaining_walls[state.active_player.id] != 0:
+    if state.rep.remaining_walls[state.active_player.id] != 0 and time_left > 5: # S'il reste des murs et s'il reste plus de 5 secondes
         
         for r, c in state.rep.pawn_positions.values():
             candidats.update([
@@ -101,7 +104,7 @@ def delta_dist(state : GameStateQuoridor, inverse):
 
 #Minimax avec alpha-beta churning
 
-def minimax(state, my_player : bool, alpha, beta, depth, inverse, player):
+def minimax(state, my_player : bool, alpha, beta, depth, inverse, player, remaining_time, time_start):
 
     #Winner?
 
@@ -128,10 +131,10 @@ def minimax(state, my_player : bool, alpha, beta, depth, inverse, player):
 
     elif my_player :
         maximum = -1000
-        actions = gen_actions_utiles(state, player)
+        actions = gen_actions_utiles(state, player, remaining_time, time_start)
 
         for action in actions :
-            impact = minimax(state.apply_action(action), False, alpha, beta, depth-1, inverse, player)[0]
+            impact = minimax(state.apply_action(action), False, alpha, beta, depth-1, inverse, player, remaining_time, time_start)[0]
             if maximum < impact:
                 maximum = impact
                 meilleure_action = action
@@ -142,9 +145,9 @@ def minimax(state, my_player : bool, alpha, beta, depth, inverse, player):
 
     else :
         minimum = 1000
-        actions = gen_actions_utiles(state, player)
+        actions = gen_actions_utiles(state, player, remaining_time, time_start)
         for action in actions :
-            impact = minimax(state.apply_action(action), True, alpha, beta, depth-1, inverse, player)[0]
+            impact = minimax(state.apply_action(action), True, alpha, beta, depth-1, inverse, player, remaining_time, time_start)[0]
             if minimum > impact:
                 minimum = impact
                 meilleure_action = action
@@ -189,6 +192,8 @@ class MyPlayer(PlayerQuoridor):
         """
         Quantifier la valeur d'un pas comme 1/(dist_restante+nbr_de_mur_adv) et valeur d'un placement de mur minimax rallongement adversaire en calc la valeurde ces pas, donc
         """
+        start_time = time.perf_counter()
+
         #agencement des formules
         if current_state.active_player.id == current_state.players[1].id :
             inverse = -1
@@ -223,7 +228,7 @@ class MyPlayer(PlayerQuoridor):
         alpha = -1000
         depth = 4
         #Minimax
-        resultat = minimax(current_state, True, alpha, beta, depth, inverse, player)
+        resultat = minimax(current_state, True, alpha, beta, depth, inverse, player, remaining_time, start_time)
         meilleure_action = resultat[1]
  
 
