@@ -30,7 +30,9 @@ Only compute walls that are sticked to player or other wall + 1 space and 1 spac
 """
 
 """
-    ***Cette boucle à été partiellement écrite par IA pour réduire l'engorgement de l'écran, la section touchée est ilustrée par des commentaires #***().
+    ***Cette boucle à été partiellement écrite par IA pour réduire l'engorgement de l'écran, la section touchée est ilustrée par des commentaires #***(), à noter 
+    que des modifications ont tout de même étées apporter à ces sections.
+    
     Cette section proviens d'une boucle de la V2 passant au travers des "legal wall" avec la condition que les murs toucehnt ou soient a distance de 1 des autres,
     faisant que le nombre ditération venaient rallonger le code donc une version écrite a la main est venue, au lieu de passer par "_legal_moves", vérifier
     les états possibles avec "_is_wall_legal". La version humaine faisant des lignes de codes trop longues et invoquant a plusieurs reprises des méthodes ".append"
@@ -41,17 +43,25 @@ Only compute walls that are sticked to player or other wall + 1 space and 1 spac
 H, V = actions_quoridor.Orientation.HORIZONTAL, actions_quoridor.Orientation.VERTICAL
 #***)
 
-def gen_actions_utiles(state, eloigne=None):
+def gen_actions_utiles(state, inverse):
     mouvements = tuple(state._legal_moves())
     candidats = set()
     Wall = actions_quoridor.Wall
+
     #***(
-    if state.rep.remaining_walls[state.active_player.id] != 0:
+    if state.rep.remaining_walls[state.active_player.id] != 0 and delta_dist(state, inverse) < 4:
+        
+        for r, c in state.rep.pawn_positions.values():
+            candidats.update([
+                (r, c - 1, H), (r, c - 2, H), (r - 1, c - 1, H), (r - 1, c - 2, H),
+                (r - 1, c, V), (r - 2, c, V), (r - 1, c - 1, V), (r - 2, c - 1, V),
+            ])
+
         for w in state.rep.walls:
             r, c = w.row, w.col
             if w.orientation == H:
                 candidats.update([
-                    (r, c - 2, H), (r, c + 2, H), (r - 1, c, H), (r + 1, c, H),
+                    (r, c - 2, H), (r, c + 2, H), 
                     (r, c + 2, V), (r - 2, c + 2, V), (r, c + 1, V),
                     (r - 2, c + 1, V), (r, c, V), (r - 2, c, V),
                 ])
@@ -59,17 +69,20 @@ def gen_actions_utiles(state, eloigne=None):
                 candidats.update([
                     (r + 2, c, H), (r + 2, c - 2, H), (r + 1, c, H),
                     (r + 1, c - 2, H), (r, c, H), (r, c - 2, H),
-                    (r - 2, c, V), (r + 2, c, V), (r, c - 1, V), (r, c + 1, V),
+                    (r - 2, c, V), (r + 2, c, V), 
                 ])
 
-        for r, c in state.rep.pawn_positions.values():
-            candidats.update([
-                (r, c - 1, H), (r, c - 2, H), (r - 1, c - 1, H), (r - 1, c - 2, H),
-                (r - 1, c, V), (r - 2, c, V), (r - 1, c - 1, V), (r - 2, c - 1, V),
-            ])
     murs = []
+
     if len(candidats) != 0:
+        
         for r, c, o in candidats:
+            
+            if o == V and ((r>=8 or r<0) or (c==0 or c==9)):
+                continue
+            if o == H and ((c>=8 or c<0) or (r==0 or r==9)):
+                continue
+
             wall = Wall(r, c, o)
             if state._is_wall_legal(wall):
                 murs.append(StatelessAction({
@@ -115,7 +128,7 @@ def minimax(state, my_player : bool, alpha, beta, depth, inverse):
 
     elif my_player :
         maximum = -1000
-        actions = gen_actions_utiles(state, 1)
+        actions = gen_actions_utiles(state, inverse)
 
         for action in actions :
             impact = minimax(state.apply_action(action), False, alpha, beta, depth-1, inverse)[0]
@@ -129,7 +142,7 @@ def minimax(state, my_player : bool, alpha, beta, depth, inverse):
 
     else :
         minimum = 1000
-        actions = gen_actions_utiles(state, 0)
+        actions = gen_actions_utiles(state, inverse)
         for action in actions :
             impact = minimax(state.apply_action(action), True, alpha, beta, depth-1, inverse)[0]
             if minimum > impact:
