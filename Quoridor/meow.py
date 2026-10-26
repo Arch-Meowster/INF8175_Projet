@@ -33,10 +33,10 @@ Only compute walls that are sticked to player or other wall + 1 space and 1 spac
     ***Cette boucle à été partiellement écrite par IA pour réduire l'engorgement de l'écran, la section touchée est ilustrée par des commentaires #***(), à noter 
     que des modifications ont tout de même étées apporter à ces sections.
     
-    Cette section proviens d'une boucle de la V2 passant au travers des "legal wall" avec la condition que les murs toucehnt ou soient a distance de 1 des autres,
+    Cette section proviens d'une boucle de la V2 passant au travers des "legal wall" avec la condition que les murs touchent ou soient a distance de 1 des autres,
     faisant que le nombre ditération venaient rallonger le code donc une version écrite a la main est venue, au lieu de passer par "_legal_moves", vérifier
-    les états possibles avec "_is_wall_legal". La version humaine faisant des lignes de codes trop longues et invoquant a plusieurs reprises des méthodes ".append"
-    étaient inneficace et illisible donc l'ia s'est occupé de générer la même logique sous forme de "set".
+    les états possibles avec "_is_wall_legal". La version humaine faisant des lignes de codes trop longues et invoquait a plusieurs reprises des méthodes ".append"
+    qui étaient inneficace et illisible donc l'ia s'est occupé de générer la même logique sous forme de "set".
 """
 
 #***(
@@ -49,7 +49,7 @@ def gen_actions_utiles(state, player):
     Wall = actions_quoridor.Wall
 
     #***(
-    if state.rep.remaining_walls[state.active_player.id] != 0 and state.rep.remaining_time[player] < 2:
+    if state.rep.remaining_walls[state.active_player.id] != 0:
         
         for r, c in state.rep.pawn_positions.values():
             candidats.update([
@@ -78,9 +78,9 @@ def gen_actions_utiles(state, player):
         
         for r, c, o in candidats:
             
-            if o == V and ((r>=8 or r<0) or (c==0 or c==9)):
+            if o == V and  or (c==0 or c==9):
                 continue
-            if o == H and ((c>=8 or c<0) or (r==0 or r==9)):
+            if o == H and (r==0 or r==9):
                 continue
 
             wall = Wall(r, c, o)
