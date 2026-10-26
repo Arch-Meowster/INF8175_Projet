@@ -43,13 +43,13 @@ Only compute walls that are sticked to player or other wall + 1 space and 1 spac
 H, V = actions_quoridor.Orientation.HORIZONTAL, actions_quoridor.Orientation.VERTICAL
 #***)
 
-def gen_actions_utiles(state, inverse):
+def gen_actions_utiles(state, player):
     mouvements = tuple(state._legal_moves())
     candidats = set()
     Wall = actions_quoridor.Wall
 
     #***(
-    if state.rep.remaining_walls[state.active_player.id] != 0 and delta_dist(state, inverse) < 4:
+    if state.rep.remaining_walls[state.active_player.id] != 0 and state.rep.remaining_time[player] < 2:
         
         for r, c in state.rep.pawn_positions.values():
             candidats.update([
@@ -89,7 +89,7 @@ def gen_actions_utiles(state, inverse):
                     "type": "vertical" if o == V else "horizontal",
                     "destination": (r, c),
                 }))
-    #***
+    #***)
     return mouvements + tuple(murs)
 
 
@@ -101,7 +101,7 @@ def delta_dist(state : GameStateQuoridor, inverse):
 
 #Minimax avec alpha-beta churning
 
-def minimax(state, my_player : bool, alpha, beta, depth, inverse):
+def minimax(state, my_player : bool, alpha, beta, depth, inverse, player):
 
     #Winner?
 
@@ -128,10 +128,10 @@ def minimax(state, my_player : bool, alpha, beta, depth, inverse):
 
     elif my_player :
         maximum = -1000
-        actions = gen_actions_utiles(state, inverse)
+        actions = gen_actions_utiles(state, player)
 
         for action in actions :
-            impact = minimax(state.apply_action(action), False, alpha, beta, depth-1, inverse)[0]
+            impact = minimax(state.apply_action(action), False, alpha, beta, depth-1, inverse, player)[0]
             if maximum < impact:
                 maximum = impact
                 meilleure_action = action
@@ -142,9 +142,9 @@ def minimax(state, my_player : bool, alpha, beta, depth, inverse):
 
     else :
         minimum = 1000
-        actions = gen_actions_utiles(state, inverse)
+        actions = gen_actions_utiles(state, player)
         for action in actions :
-            impact = minimax(state.apply_action(action), True, alpha, beta, depth-1, inverse)[0]
+            impact = minimax(state.apply_action(action), True, alpha, beta, depth-1, inverse, player)[0]
             if minimum > impact:
                 minimum = impact
                 meilleure_action = action
@@ -192,8 +192,11 @@ class MyPlayer(PlayerQuoridor):
         #agencement des formules
         if current_state.active_player.id == current_state.players[1].id :
             inverse = -1
+            player = current_state.players[1].id
         else : 
             inverse = 1
+            player = current_state.players[0].id
+
         
         '''
         #Opening
@@ -220,7 +223,7 @@ class MyPlayer(PlayerQuoridor):
         alpha = -1000
         depth = 4
         #Minimax
-        resultat = minimax(current_state, True, alpha, beta, depth, inverse)
+        resultat = minimax(current_state, True, alpha, beta, depth, inverse, player)
         meilleure_action = resultat[1]
  
 
