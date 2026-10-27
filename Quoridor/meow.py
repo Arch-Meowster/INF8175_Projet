@@ -20,6 +20,8 @@ import time
 
 """
 Trouver la distance estimée restante a parcourir en ce moment moyenne sur nombre de murs restants, plus tard ML ou modélisation probabiliste.
+Utiliser le tours, donc si égale, fois 0.5 pour le joeur en deuxième à jouer, pour favoriser le joueur en premier.
+
 """
 def dist_estimee (state: GameStateQuoridor, player):
 
@@ -54,7 +56,7 @@ Only compute walls that are sticked to player or other wall + 1 space and 1 spac
 H, V = actions_quoridor.Orientation.HORIZONTAL, actions_quoridor.Orientation.VERTICAL
 #***)
 
-def gen_actions_utiles(state, player, remaining_time, time_start):
+def gen_actions_utiles(state, player, remaining_time, time_start, strat):
 
     time_left = remaining_time - (time.perf_counter() - time_start)
     mouvements = tuple(state._legal_moves())
@@ -62,7 +64,7 @@ def gen_actions_utiles(state, player, remaining_time, time_start):
     Wall = actions_quoridor.Wall
 
     #***(
-    if state.rep.remaining_walls[state.active_player.id] != 0 and time_left > 5: # S'il reste des murs et s'il reste plus de 5 secondes
+    if state.rep.remaining_walls[state.active_player.id] != 0 and time_left > 5 and strat == False: # S'il reste des murs et s'il reste plus de 5 secondes
         
         for r, c in state.rep.pawn_positions.values():
             candidats.update([
@@ -114,7 +116,7 @@ def delta_dist(state : GameStateQuoridor, inverse):
 
 #Minimax avec alpha-beta churning
 
-def minimax(state, my_player : bool, alpha, beta, depth, inverse, player, remaining_time, time_start):
+def minimax(state, my_player : bool, alpha, beta, depth, inverse, player, remaining_time, time_start, start):
 
     #Winner?
 
@@ -141,10 +143,10 @@ def minimax(state, my_player : bool, alpha, beta, depth, inverse, player, remain
 
     elif my_player :
         maximum = -1000
-        actions = gen_actions_utiles(state, player, remaining_time, time_start)
+        actions = gen_actions_utiles(state, player, remaining_time, time_start, start)
 
         for action in actions :
-            impact = minimax(state.apply_action(action), False, alpha, beta, depth-1, inverse, player, remaining_time, time_start)[0]
+            impact = minimax(state.apply_action(action), False, alpha, beta, depth-1, inverse, player, remaining_time, time_start, start)[0]
             if maximum < impact:
                 maximum = impact
                 meilleure_action = action
@@ -155,9 +157,9 @@ def minimax(state, my_player : bool, alpha, beta, depth, inverse, player, remain
 
     else :
         minimum = 1000
-        actions = gen_actions_utiles(state, player, remaining_time, time_start)
+        actions = gen_actions_utiles(state, player, remaining_time, time_start, start)
         for action in actions :
-            impact = minimax(state.apply_action(action), True, alpha, beta, depth-1, inverse, player, remaining_time, time_start)[0]
+            impact = minimax(state.apply_action(action), True, alpha, beta, depth-1, inverse, player, remaining_time, time_start, start)[0]
             if minimum > impact:
                 minimum = impact
                 meilleure_action = action
@@ -234,6 +236,10 @@ class MyPlayer(PlayerQuoridor):
         #Minimax
         else:
         '''
+        start = False
+        if current_state.get_step()/2 < 3:
+            start = True
+
         beta = 1000
         alpha = -1000
         if remaining_time>600:
@@ -242,8 +248,9 @@ class MyPlayer(PlayerQuoridor):
             depth = 4
         else:
             depth = 3
+
         #Minimax
-        resultat = minimax(current_state, True, alpha, beta, depth, inverse, player, remaining_time, start_time)
+        resultat = minimax(current_state, True, alpha, beta, depth, inverse, player, remaining_time, start_time, start)
         meilleure_action = resultat[1]
  
 
