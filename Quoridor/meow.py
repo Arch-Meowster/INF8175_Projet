@@ -1,6 +1,6 @@
 """
 Code produit dans le cadre du cours INF8175. 
-Réalisation du agent pour le jeux Quoridor.
+Réalisation d'un agent pour le jeu Quoridor.
 
 Réalisé par:
 Jordan Valiquette (2280857)
