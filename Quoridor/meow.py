@@ -226,7 +226,12 @@ class MyPlayer(PlayerQuoridor):
         '''
         beta = 1000
         alpha = -1000
-        depth = 4
+        if remaining_time>600:
+            depth = 5
+        elif remaining_time>150:
+            depth = 4
+        else:
+            depth = 3
         #Minimax
         resultat = minimax(current_state, True, alpha, beta, depth, inverse, player, remaining_time, start_time)
         meilleure_action = resultat[1]
