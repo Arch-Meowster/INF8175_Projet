@@ -1,3 +1,13 @@
+"""
+Code produit dans le cadre du cours INF8175. 
+Réalisation d'un agent pour le jeu Quoridor.
+
+Réalisé par:
+Jordan Valiquette (2280857)
+Philippe Clermont (2290116)
+"""
+
+
 from seahorse.game.game_state import StatelessAction
 import actions_quoridor
 import game_state_quoridor
