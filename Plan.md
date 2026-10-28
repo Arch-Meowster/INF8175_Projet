@@ -9,6 +9,7 @@ Créé un agent capable de jouer au jeux Quoridor.
 
 # 2. Plan de travail
 
+- [ ] Problème rencontré lors des parties qu'on joue: notre agent fais des pas part en arrière. À voir si cela est toujours le cas après avoir modifier l'heuristique. 
 - [ ] Compléter l'heuristique
   - [ ] Définir les paramètre à utiliser et leur poid
 - [ ] Définir des ouvertures (pt regarder dans la littérature, j'ai vu que y'avais des ouverture commune)
@@ -33,7 +34,7 @@ Explication du fonctionnement:
 
 Amélioratiojn possible:
 - Pour le alpha-bêta prunnning: Calculer si un mur rallonge aussi notre chemin, genre pour trier en fonctione des meilleur au pire. Si ca rallonge aussi notre chemin alors on le trie pour qu'il soit a la fin ou je sais pas. 
-- 
+- Améliorer le alpha-bêta prunning: Faire une liste et seulement transfomer en StatelessAction lorsque 
 
 
 # 4. Explication des versions
