@@ -1,11 +1,9 @@
-from seahorse.game.game_state import StatelessAction
 import actions_quoridor
 import game_state_quoridor
 from player_quoridor import PlayerQuoridor
 from seahorse.game.action import Action
 from game_state_quoridor import GameStateQuoridor
 from seahorse.utils.custom_exceptions import MethodNotImplementedError
-import time
 
 
 """
@@ -14,14 +12,12 @@ Trouver la distance estimée restante a parcourir en ce moment moyenne sur nombr
 def dist_estimee (state: GameStateQuoridor, player):
 
     chemin = state._shortest_path(player)
-    """
     remaining_walls = state.rep.remaining_walls
 
     if player == state.players[0]:
         murs_restants_adv = remaining_walls[state.players[1].id]
     else :
         murs_restants_adv = remaining_walls[state.players[0].id]
-    """
     return chemin
 # 2.5 a revérifier par regression linéaire et ajuster avec gamestate par ML
 
@@ -30,70 +26,64 @@ def dist_estimee (state: GameStateQuoridor, player):
 Only compute walls that are sticked to player or other wall + 1 space and 1 space further for less possible outcomes
 """
 
-"""
-    ***Cette boucle à été partiellement écrite par IA pour réduire l'engorgement de l'écran, la section touchée est ilustrée par des commentaires #***(), à noter 
-    que des modifications ont tout de même étées apporter à ces sections.
-    
-    Cette section proviens d'une boucle de la V2 passant au travers des "legal wall" avec la condition que les murs touchent ou soient a distance de 1 des autres,
-    faisant que le nombre ditération venaient rallonger le code donc une version écrite a la main est venue, au lieu de passer par "_legal_moves", vérifier
-    les états possibles avec "_is_wall_legal". La version humaine faisant des lignes de codes trop longues et invoquait a plusieurs reprises des méthodes ".append"
-    qui étaient inneficace et illisible donc l'ia s'est occupé de générer la même logique sous forme de "set".
-"""
-
-#***(
-H, V = actions_quoridor.Orientation.HORIZONTAL, actions_quoridor.Orientation.VERTICAL
-#***)
-
-def gen_actions_utiles(state, player, remaining_time, time_start):
-
-    time_left = remaining_time - (time.perf_counter() - time_start)
+def actions_utiles(state: GameStateQuoridor, eloigne):
+    murs_possibles = tuple(state._legal_walls())
     mouvements = tuple(state._legal_moves())
-    candidats = set()
-    Wall = actions_quoridor.Wall
-
-    #***(
-    if state.rep.remaining_walls[state.active_player.id] != 0 and time_left > 5: # S'il reste des murs et s'il reste plus de 5 secondes
-        
-        for r, c in state.rep.pawn_positions.values():
-            candidats.update([
-                (r, c - 1, H), (r, c - 2, H), (r - 1, c - 1, H), (r - 1, c - 2, H),
-                (r - 1, c, V), (r - 2, c, V), (r - 1, c - 1, V), (r - 2, c - 1, V),
-            ])
-
-        for w in state.rep.walls:
-            r, c = w.row, w.col
-            if w.orientation == H:
-                candidats.update([
-                    (r, c - 2, H), (r, c + 2, H), 
-                    (r, c + 2, V), (r - 2, c + 2, V), (r, c + 1, V),
-                    (r - 2, c + 1, V), (r, c, V), (r - 2, c, V),
-                ])
-            else:
-                candidats.update([
-                    (r + 2, c, H), (r + 2, c - 2, H), (r + 1, c, H),
-                    (r + 1, c - 2, H), (r, c, H), (r, c - 2, H),
-                    (r - 2, c, V), (r + 2, c, V), 
-                ])
-
-    murs = []
-
-    if len(candidats) != 0:
-        
-        for r, c, o in candidats:
+    murs_present = state.rep.walls
+    positions = state.rep.pawn_positions
+    murs_valides = []
+    for mur in murs_possibles:
             
-            if o == V and (c==0 or c==9):
-                continue
-            if o == H and (r==0 or r==9):
-                continue
+        rowmur = mur.data["destination"][0]
+        colmur = mur.data["destination"][1]
+    
+        for objet in murs_present:
 
-            wall = Wall(r, c, o)
-            if state._is_wall_legal(wall):
-                murs.append(StatelessAction({
-                    "type": "vertical" if o == V else "horizontal",
-                    "destination": (r, c),
-                }))
-    #***)
-    return mouvements + tuple(murs)
+            cobjet = objet.col
+            robjet = objet.row
+            
+            if mur.data["type"] == 'horizontal':              
+                if objet.orientation == 'horizontal':
+                    if (colmur == cobjet - 2 or colmur == cobjet + 2) and rowmur == robjet :
+                        murs_valides.append(mur)
+                        print(mur.data["destination"])
+                        break
+                    if (rowmur == robjet - 1 or rowmur == robjet + 1) and colmur == cobjet:
+                        murs_valides.append(mur)
+                        break
+                else :
+                    if (colmur == cobjet or colmur == cobjet - 2) and rowmur <= robjet + 2 and rowmur >= robjet :
+                        murs_valides.append(mur)
+                        break
+
+            else :
+                if objet.orientation == 'horizontal':
+                    if (rowmur == robjet or rowmur == robjet - 2) and colmur <= cobjet + 2 and colmur >= cobjet :
+                        murs_valides.append(mur)
+                        break
+                else :
+                    if (rowmur == robjet - 2 or rowmur == robjet + 2) and colmur == cobjet :
+                        murs_valides.append(mur)
+                        break
+                    if (colmur == cobjet - 1 or colmur == cobjet + 1) and rowmur == robjet :
+                        murs_valides.append(mur)
+                        break
+                    
+        for objet in positions:
+            pos = positions[objet]
+            rpos = pos[0]
+            cpos = pos[1]
+            if mur.data["type"] == "horizontal" :
+                if (rowmur == rpos or rowmur == rpos - 1) and (colmur == cpos-1 or colmur == cpos -2):
+                    murs_valides.append(mur)
+                    break
+            else :
+                if (colmur == cpos or colmur == cpos - 1) and (rowmur == rpos-1 or rowmur == rpos -2):
+                    murs_valides.append(mur)
+                    break               
+    print(len(tuple(murs_valides) + mouvements))
+    return tuple(murs_valides) + mouvements
+
 
 
 #Delta dist_estimee
@@ -104,7 +94,7 @@ def delta_dist(state : GameStateQuoridor, inverse):
 
 #Minimax avec alpha-beta churning
 
-def minimax(state, my_player : bool, alpha, beta, depth, inverse, player, remaining_time, time_start):
+def minimax(state, my_player : bool, alpha, beta, depth, inverse):
 
     #Winner?
 
@@ -114,7 +104,7 @@ def minimax(state, my_player : bool, alpha, beta, depth, inverse, player, remain
         else:
             return (100, None)
 
-    elif state._goal_reached(state.rep, state.players[1]):
+    if state._goal_reached(state.rep, state.players[1]):
         if inverse == 1:
             return (-100, None)
         else:
@@ -123,18 +113,18 @@ def minimax(state, my_player : bool, alpha, beta, depth, inverse, player, remain
 
     #Depth reached?
 
-    elif depth == 0:
+    if depth == 0:
         return (delta_dist(state, inverse), None)
     
 
     #Iterate
 
-    elif my_player :
+    if my_player :
         maximum = -1000
-        actions = gen_actions_utiles(state, player, remaining_time, time_start)
+        actions = actions_utiles(state, 1)
 
         for action in actions :
-            impact = minimax(state.apply_action(action), False, alpha, beta, depth-1, inverse, player, remaining_time, time_start)[0]
+            impact = minimax(state.apply_action(action), False, alpha, beta, depth-1, inverse)[0]
             if maximum < impact:
                 maximum = impact
                 meilleure_action = action
@@ -145,9 +135,9 @@ def minimax(state, my_player : bool, alpha, beta, depth, inverse, player, remain
 
     else :
         minimum = 1000
-        actions = gen_actions_utiles(state, player, remaining_time, time_start)
+        actions = actions_utiles(state, 0)
         for action in actions :
-            impact = minimax(state.apply_action(action), True, alpha, beta, depth-1, inverse, player, remaining_time, time_start)[0]
+            impact = minimax(state.apply_action(action), True, alpha, beta, depth-1, inverse)[0]
             if minimum > impact:
                 minimum = impact
                 meilleure_action = action
@@ -192,16 +182,11 @@ class MyPlayer(PlayerQuoridor):
         """
         Quantifier la valeur d'un pas comme 1/(dist_restante+nbr_de_mur_adv) et valeur d'un placement de mur minimax rallongement adversaire en calc la valeurde ces pas, donc
         """
-        start_time = time.perf_counter()
-
         #agencement des formules
         if current_state.active_player.id == current_state.players[1].id :
             inverse = -1
-            player = current_state.players[1].id
         else : 
             inverse = 1
-            player = current_state.players[0].id
-
         
         '''
         #Opening
@@ -226,11 +211,11 @@ class MyPlayer(PlayerQuoridor):
         '''
         beta = 1000
         alpha = -1000
-        depth = 4
+        depth = 3
         #Minimax
-        resultat = minimax(current_state, True, alpha, beta, depth, inverse, player, remaining_time, start_time)
+        resultat = minimax(current_state, True, alpha, beta, depth, inverse)
         meilleure_action = resultat[1]
- 
+    
 
         return meilleure_action
             
@@ -240,3 +225,4 @@ class MyPlayer(PlayerQuoridor):
 
         
         #minimax
+            
