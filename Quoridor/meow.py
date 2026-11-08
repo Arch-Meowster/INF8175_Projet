@@ -17,7 +17,6 @@ from game_state_quoridor import GameStateQuoridor
 from seahorse.utils.custom_exceptions import MethodNotImplementedError
 import time
 
-
 """
 Trouver la distance estimée restante a parcourir en ce moment moyenne sur nombre de murs restants, plus tard ML ou modélisation probabiliste.
 Utiliser le tours, donc si égale, fois 0.5 pour le joeur en deuxième à jouer, pour favoriser le joueur en premier.
@@ -107,16 +106,7 @@ def gen_actions_utiles(state, player, remaining_time, time_start, strat):
     #***)
     return mouvements + tuple(murs)
 
-
-#Delta dist_estimee
-
-def delta_dist(state : GameStateQuoridor, inverse):
-    delta = inverse * (dist_estimee(state, state.players[1]) - dist_estimee(state, state.players[0]))
-    return delta
-
-#Minimax avec alpha-beta churning
-
-def minimax(state, my_player : bool, alpha, beta, depth, inverse, player, remaining_time, time_start, start):
+def minimax(self, state, my_player : bool, alpha, beta, depth, inverse, player, remaining_time, time_start, start, etats_finaux):
 
     #Winner?
 
@@ -144,29 +134,47 @@ def minimax(state, my_player : bool, alpha, beta, depth, inverse, player, remain
     elif my_player :
         maximum = -1000
         actions = gen_actions_utiles(state, player, remaining_time, time_start, start)
-
+        
         for action in actions :
-            impact = minimax(state.apply_action(action), False, alpha, beta, depth-1, inverse, player, remaining_time, time_start, start)[0]
+            applied_action = state.apply_action(action)
+            impact = minimax(self, applied_action, False, alpha, beta, depth-1, inverse, player, remaining_time, time_start, start, etats_finaux)[0]
             if maximum < impact:
                 maximum = impact
                 meilleure_action = action
             alpha = max(alpha, impact)
             if beta <= alpha:
                 break
+        if depth == 2:
+            self._cache[state] = etats_finaux
+
         return (maximum, meilleure_action)
 
     else :
         minimum = 1000
         actions = gen_actions_utiles(state, player, remaining_time, time_start, start)
         for action in actions :
-            impact = minimax(state.apply_action(action), True, alpha, beta, depth-1, inverse, player, remaining_time, time_start, start)[0]
+            applied_action = state.apply_action(action)
+            impact = minimax(self, applied_action, True, alpha, beta, depth-1, inverse, player, remaining_time, time_start, start, etats_finaux)[0]
+            if depth == 1:
+                etats_finaux.append((applied_action, impact))
             if minimum > impact:
                 minimum = impact
                 meilleure_action = action
             beta = min(beta, impact)
+
             if beta <= alpha:
                 break
+
         return (minimum, meilleure_action)
+
+
+#Delta dist_estimee
+
+def delta_dist(state : GameStateQuoridor, inverse):
+    delta = inverse * (dist_estimee(state, state.players[1]) - dist_estimee(state, state.players[0]))
+    return delta
+
+#Minimax avec alpha-beta churning
 
 
 
@@ -187,9 +195,10 @@ class MyPlayer(PlayerQuoridor):
             goal_row (int): The row the player wants to reach
             name (str, optional): Name of the player (default is "bob")
         """
+        self._cache = {}
         super().__init__(piece_type, goal_row, name)
 
-
+    
     def compute_action(self, current_state: GameStateQuoridor, remaining_time: float = 15*60, **kwargs) -> Action:
         """
         Use the minimax algorithm to choose the best action based on the heuristic evaluation of game states.
@@ -232,27 +241,35 @@ class MyPlayer(PlayerQuoridor):
                 if 
 
 
-
         #Minimax
         else:
         '''
-        start = False
+        liste_score = []
+        start = True
         if current_state.get_step()/2 < 3:
             start = True
+        liste_etats = self._cache.get(current_state)
+        if liste_etats != None:
+            liste_etats.sort(key=lambda x:x[1], reverse=True)
+            for t in liste_etats:
+                liste_score.append(t[1])
+
+        self._cache = {}
 
         beta = 1000
         alpha = -1000
         if remaining_time>600:
-            depth = 5
+            depth = 4
         elif remaining_time>150:
             depth = 4
         else:
             depth = 3
+        etats_finaux = []
 
         #Minimax
-        resultat = minimax(current_state, True, alpha, beta, depth, inverse, player, remaining_time, start_time, start)
+        resultat = minimax(self, current_state, True, alpha, beta, depth, inverse, player, remaining_time, start_time, start, etats_finaux)
         meilleure_action = resultat[1]
  
-
+        print(f"{len(liste_score)}\n\n")
         return meilleure_action
 
