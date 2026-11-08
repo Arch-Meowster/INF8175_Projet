@@ -18,6 +18,8 @@ from seahorse.utils.custom_exceptions import MethodNotImplementedError
 import time
 
 
+#===== Heuristique =====
+
 """
 Trouver la distance estimée restante a parcourir en ce moment moyenne sur nombre de murs restants, plus tard ML ou modélisation probabiliste.
 Utiliser le tours, donc si égale, fois 0.5 pour le joeur en deuxième à jouer, pour favoriser le joueur en premier.
@@ -187,6 +189,8 @@ class MyPlayer(PlayerQuoridor):
             goal_row (int): The row the player wants to reach
             name (str, optional): Name of the player (default is "bob")
         """
+        # dans __init__
+
         super().__init__(piece_type, goal_row, name)
 
 
@@ -240,14 +244,19 @@ class MyPlayer(PlayerQuoridor):
         if current_state.get_step()/2 < 3:
             start = True
 
+        
+        Poids = {"distance": 1, "walls": 0.5, "turns": 0.5}
+        
         beta = 1000
         alpha = -1000
-        if remaining_time>600:
-            depth = 5
-        elif remaining_time>150:
-            depth = 4
-        else:
-            depth = 3
+
+        depth = 2
+        # if remaining_time>600:
+        #     depth = 5
+        # elif remaining_time>150:
+        #     depth = 4
+        # else:
+        #     depth = 3
 
         #Minimax
         resultat = minimax(current_state, True, alpha, beta, depth, inverse, player, remaining_time, start_time, start)
