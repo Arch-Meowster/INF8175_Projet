@@ -255,10 +255,4 @@ class MyPlayer(PlayerQuoridor):
  
 
         return meilleure_action
-            
-        
 
-
-
-        
-        #minimax
