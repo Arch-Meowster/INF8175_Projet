@@ -80,7 +80,7 @@ Only compute walls that are sticked to player or other wall + 1 space and 1 spac
 H, V = actions_quoridor.Orientation.HORIZONTAL, actions_quoridor.Orientation.VERTICAL
 #***)
 
-def gen_actions_utiles(state, player, remaining_time, time_start, strat):
+def gen_actions_utiles(state, player, remaining_time, time_start, opening):
 
     time_left = remaining_time - (time.perf_counter() - time_start)
     mouvements = tuple(state._legal_moves())
@@ -88,7 +88,7 @@ def gen_actions_utiles(state, player, remaining_time, time_start, strat):
     Wall = actions_quoridor.Wall
 
     #***(
-    if state.rep.remaining_walls[state.active_player.id] != 0 and time_left > 5 and strat == False: # S'il reste des murs et s'il reste plus de 5 secondes
+    if state.rep.remaining_walls[state.active_player.id] != 0 and time_left > 5 and opening == False: # S'il reste des murs et s'il reste plus de 5 secondes
         
         for r, c in state.rep.pawn_positions.values():
             candidats.update([
@@ -116,10 +116,12 @@ def gen_actions_utiles(state, player, remaining_time, time_start, strat):
     if len(candidats) != 0:
         
         for r, c, o in candidats:
+
+            dim = state.rep.dimension
             
-            if o == V and (c==0 or c==9):
+            if o == V and not (1 <= c <= dim - 1):
                 continue
-            if o == H and (r==0 or r==9):
+            if o == H and not (1 <= r <= dim - 1):
                 continue
 
             wall = Wall(r, c, o)
