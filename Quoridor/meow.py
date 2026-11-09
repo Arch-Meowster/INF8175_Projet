@@ -17,25 +17,41 @@ from game_state_quoridor import GameStateQuoridor
 from seahorse.utils.custom_exceptions import MethodNotImplementedError
 import time
 
+
+#==== Heuristique =====
+def evaluer(state, inverse):
+
+    score = 0
+    Poids = {"distance": 1, "walls": 0.5, "turns": 0.5}
+
+    if inverse == 1:
+        moi = state.players[0]
+    else:
+        moi = state.players[1]
+
+    adv = state._opponent(moi)
+
+    d_moi = state._shortest_path(moi)
+    d_adv = state._shortest_path(adv)
+
+    moi_murs = state.rep.remaining_walls[moi.id]
+    adv_murs = state.rep.remaining_walls[adv.id]
+
+    heuristique = {
+        "distance": d_adv - d_moi,
+        "walls": moi_murs - adv_murs,
+        "turns": 1 if state.active_player == moi else -1
+    }
+
+    for nom, valeur in heuristique.items():
+        score += valeur * Poids[nom]
+
+    return score
+
 """
 Trouver la distance estimée restante a parcourir en ce moment moyenne sur nombre de murs restants, plus tard ML ou modélisation probabiliste.
 Utiliser le tours, donc si égale, fois 0.5 pour le joeur en deuxième à jouer, pour favoriser le joueur en premier.
-
 """
-def dist_estimee (state: GameStateQuoridor, player):
-
-    chemin = state._shortest_path(player)
-    """
-    remaining_walls = state.rep.remaining_walls
-
-    if player == state.players[0]:
-        murs_restants_adv = remaining_walls[state.players[1].id]
-    else :
-        murs_restants_adv = remaining_walls[state.players[0].id]
-    """
-    return chemin
-# 2.5 a revérifier par regression linéaire et ajuster avec gamestate par ML
-
 
 """
 Only compute walls that are sticked to player or other wall + 1 space and 1 space further for less possible outcomes
@@ -126,7 +142,7 @@ def minimax(self, state, my_player : bool, alpha, beta, depth, inverse, player, 
     #Depth reached?
 
     elif depth == 0:
-        return (delta_dist(state, inverse), None)
+        return (evaluer(state, inverse), None)
     
 
     #Iterate
@@ -167,12 +183,6 @@ def minimax(self, state, my_player : bool, alpha, beta, depth, inverse, player, 
 
         return (minimum, meilleure_action)
 
-
-#Delta dist_estimee
-
-def delta_dist(state : GameStateQuoridor, inverse):
-    delta = inverse * (dist_estimee(state, state.players[1]) - dist_estimee(state, state.players[0]))
-    return delta
 
 #Minimax avec alpha-beta churning
 
