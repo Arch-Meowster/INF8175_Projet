@@ -19,11 +19,13 @@ import time
 
 
 #==== Heuristique =====
+
+POIDS = {"distance": 1, "walls": 0.5, "turns": 0.5}
+
 def evaluer(state, inverse):
 
     score = 0
-    Poids = {"distance": 1, "walls": 0.5, "turns": 0.5}
-
+    
     if inverse == 1:
         moi = state.players[0]
     else:
@@ -43,9 +45,16 @@ def evaluer(state, inverse):
         "turns": 1 if state.active_player == moi else -1
     }
 
-    for nom, valeur in heuristique.items():
-        score += valeur * Poids[nom]
+    # S'il n'y as plus de mur, c'est juste le plus court chemin qui compte
+    if moi_murs == 0 and adv_murs == 0:
+        if d_moi < d_adv or (d_moi == d_adv and state.active_player == moi):
+            score += 50
+        else:
+            score += -50
 
+    for nom, valeur in heuristique.items():
+        score += valeur * POIDS[nom]
+        
     return score
 
 """
@@ -255,9 +264,13 @@ class MyPlayer(PlayerQuoridor):
         else:
         '''
         liste_score = []
-        start = True
+
+        # Opening pour live, calcule juste le plus court chemin
+        start = False
         if current_state.get_step()/2 < 3:
             start = True
+
+
         liste_etats = self._cache.get(current_state)
         if liste_etats != None:
             liste_etats.sort(key=lambda x:x[1], reverse=True)
