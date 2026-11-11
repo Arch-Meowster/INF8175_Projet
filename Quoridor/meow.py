@@ -118,7 +118,7 @@ def gen_actions_utiles(state, player, remaining_time, time_start, opening):
         for r, c, o in candidats:
 
             dim = state.rep.dimension
-            
+
             if o == V and not (1 <= c <= dim - 1):
                 continue
             if o == H and not (1 <= r <= dim - 1):
@@ -154,7 +154,7 @@ def minimax(self, state, my_player : bool, alpha, beta, depth, inverse, player, 
     #Depth reached?
 
     elif depth == 0:
-        return (delta_dist(state, inverse), None, {})
+        return (evaluer(state, inverse), None, {})
 
     
 
