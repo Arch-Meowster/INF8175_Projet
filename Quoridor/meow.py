@@ -118,7 +118,7 @@ def gen_actions_utiles(state, player, remaining_time, time_start, opening):
         for r, c, o in candidats:
 
             dim = state.rep.dimension
-
+            
             if o == V and not (1 <= c <= dim - 1):
                 continue
             if o == H and not (1 <= r <= dim - 1):
@@ -133,29 +133,27 @@ def gen_actions_utiles(state, player, remaining_time, time_start, opening):
     #***)
     return mouvements + tuple(murs)
 
-
-def minimax(self, state, my_player : bool, alpha, beta, depth, inverse, player, remaining_time, time_start, start, max_depth):
+def minimax(self, state, my_player : bool, alpha, beta, depth, inverse, player, remaining_time, time_start, start, etats_finaux):
 
     #Winner?
 
     if state._goal_reached(state.rep, state.players[0]):
         if inverse == -1:
-            return (-100, None, {})
+            return (-100, None)
         else:
-            return (100, None, {})
+            return (100, None)
 
     elif state._goal_reached(state.rep, state.players[1]):
         if inverse == 1:
-            return (-100, None, {})
+            return (-100, None)
         else:
-            return (100, None, {})
+            return (100, None)
 
 
     #Depth reached?
 
     elif depth == 0:
-        return (evaluer(state, inverse), None, {})
-
+        return (evaluer(state, inverse), None)
     
 
     #Iterate
@@ -163,54 +161,39 @@ def minimax(self, state, my_player : bool, alpha, beta, depth, inverse, player, 
     elif my_player :
         maximum = -1000
         actions = gen_actions_utiles(state, player, remaining_time, time_start, start)
-        cache = {}
-        liste_state = []        
+        
         for action in actions :
-            enfant = state.apply_action(action)
-            impact, _, sous_cache = minimax(self, enfant, False, alpha, beta, depth-1, inverse, player, remaining_time, time_start, start, max_depth)
-            
-            # Cache generation
-            if max_depth == depth:
-                liste_state.extend(sous_cache.items())
-            else :
-                liste_state.append((enfant, (sous_cache, impact, max_depth-depth)))
-
-                
+            applied_action = state.apply_action(action)
+            impact = minimax(self, applied_action, False, alpha, beta, depth-1, inverse, player, remaining_time, time_start, start, etats_finaux)[0]
             if maximum < impact:
                 maximum = impact
                 meilleure_action = action
             alpha = max(alpha, impact)
             if beta <= alpha:
                 break
-        cache = dict(liste_state)
+        if depth == 2:
+            self._cache[state] = etats_finaux
 
-        return (maximum, meilleure_action, cache)
+        return (maximum, meilleure_action)
 
     else :
         minimum = 1000
         actions = gen_actions_utiles(state, player, remaining_time, time_start, start)
-        cache = {}
-        liste_state = []
         for action in actions :
-            enfant = state.apply_action(action)
-            impact, _, sous_cache = minimax(self, enfant, True, alpha, beta, depth-1, inverse, player, remaining_time, time_start, start, max_depth)
-            
-            # Cache generation
-            if max_depth == depth :
-                liste_state.extend(sous_cache.items())
-            else :
-                liste_state.append((enfant, (sous_cache, impact, max_depth-depth)))
-
-
+            applied_action = state.apply_action(action)
+            impact = minimax(self, applied_action, True, alpha, beta, depth-1, inverse, player, remaining_time, time_start, start, etats_finaux)[0]
+            if depth == 1:
+                etats_finaux.append((applied_action, impact))
             if minimum > impact:
                 minimum = impact
                 meilleure_action = action
             beta = min(beta, impact)
 
-            if beta <= alpha :
+            if beta <= alpha:
                 break
-        cache = dict(liste_state)
-        return (minimum, meilleure_action, cache)
+
+        return (minimum, meilleure_action)
+
 
 #Minimax avec alpha-beta churning
 
@@ -282,6 +265,7 @@ class MyPlayer(PlayerQuoridor):
         #Minimax
         else:
         '''
+        liste_score = []
 
         # Opening pour live, calcule juste le plus court chemin
         start = False
@@ -292,7 +276,8 @@ class MyPlayer(PlayerQuoridor):
         liste_etats = self._cache.get(current_state)
         if liste_etats != None:
             liste_etats.sort(key=lambda x:x[1], reverse=True)
-            
+            for t in liste_etats:
+                liste_score.append(t[1])
 
         self._cache = {}
 
@@ -307,10 +292,9 @@ class MyPlayer(PlayerQuoridor):
         etats_finaux = []
 
         #Minimax
-        _, resultat, cache = minimax(self, current_state, True, alpha, beta, depth, inverse, player, remaining_time, start_time, start, depth)
-        self._cache = cache
-        meilleure_action = resultat
-        print(f"\n\n\n {liste_etats}")
-
+        resultat = minimax(self, current_state, True, alpha, beta, depth, inverse, player, remaining_time, start_time, start, etats_finaux)
+        meilleure_action = resultat[1]
+ 
+        print(f"{len(liste_score)}\n\n")
         return meilleure_action
 
