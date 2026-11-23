@@ -57,9 +57,10 @@ H, V = actions_quoridor.Orientation.HORIZONTAL, actions_quoridor.Orientation.VER
 def gen_actions_utiles(state, player, remaining_time, time_start, strat):
 
     time_left = remaining_time - (time.perf_counter() - time_start)
-    mouvements = tuple(state._legal_moves())
     candidats = set()
-    Wall = actions_quoridor.Wall
+    
+    mouvements = tuple(state._legal_moves())
+    candidats.update
 
     #***(
     if state.rep.remaining_walls[state.active_player.id] != 0 and time_left > 5 and strat == False: # S'il reste des murs et s'il reste plus de 5 secondes
@@ -85,27 +86,30 @@ def gen_actions_utiles(state, player, remaining_time, time_start, strat):
                     (r - 2, c, V), (r + 2, c, V), 
                 ])
 
-    murs = []
-
-    if len(candidats) != 0:
+        Wall = actions_quoridor.Wall
+        murs = []
         
-        for r, c, o in candidats:
-            
-            if o == V and (c==0 or c==9):
-                continue
-            if o == H and (r==0 or r==9):
-                continue
+        if len(candidats) != 0:
+        
+            for r, c, o in candidats:
+                
+                if o == V and (c==0 or c==9):
+                    continue
+                if o == H and (r==0 or r==9):
+                    continue
 
-            wall = Wall(r, c, o)
-            if state._is_wall_legal(wall):
-                murs.append(StatelessAction({
-                    "type": "vertical" if o == V else "horizontal",
-                    "destination": (r, c),
-                }))
-    #***)
+                wall = Wall(r, c, o)
+                if state._is_wall_legal(wall):
+                    murs.append(StatelessAction({
+                        "type": "vertical" if o == V else "horizontal",
+                        "destination": (r, c),
+                    }))
+        
     return mouvements + tuple(murs)
 
-def minimax(self, state, my_player : bool, alpha, beta, depth, inverse, player, remaining_time, time_start, start, max_depth):
+
+
+def minimax(self, state, my_player : bool, alpha, beta, depth, inverse, player, remaining_time, time_start, start, max_depth, cache_etats, wallcount):
 
     #Winner?
 
@@ -131,57 +135,80 @@ def minimax(self, state, my_player : bool, alpha, beta, depth, inverse, player, 
 
     #Iterate
 
-    elif my_player :
-        maximum = -1000
-        actions = gen_actions_utiles(state, player, remaining_time, time_start, start)
-        cache = {}
-        liste_state = []        
-        for action in actions :
-            enfant = state.apply_action(action)
-            impact, _, sous_cache = minimax(self, enfant, False, alpha, beta, depth-1, inverse, player, remaining_time, time_start, start, max_depth)
-            
-            # Cache generation
-            if max_depth == depth:
-                liste_state.extend(sous_cache.items())
-            else :
-                liste_state.append((enfant, (sous_cache, impact, max_depth-depth)))
+    else:
 
-                
-            if maximum < impact:
-                maximum = impact
-                meilleure_action = action
-            alpha = max(alpha, impact)
-            if beta <= alpha:
-                break
-        cache = dict(liste_state)
-
-        return (maximum, meilleure_action, cache)
-
-    else :
         minimum = 1000
-        actions = gen_actions_utiles(state, player, remaining_time, time_start, start)
-        cache = {}
-        liste_state = []
-        for action in actions :
-            enfant = state.apply_action(action)
-            impact, _, sous_cache = minimax(self, enfant, True, alpha, beta, depth-1, inverse, player, remaining_time, time_start, start, max_depth)
+        maximum = -1000
+
+        """
+            IA générative partiellement utilisée pour écrire le if suivant en gros on match 
+            les états du cache avec les actions du gen actions pour ordonner le tout 
+            par rapport au score calculé précédement (du cache) 
+            soit les actions avec un score désiré passent en premier pour le pruning
+        """       
+        #(***
+        if cache_etats is not None:
+            connus = sorted(cache_etats.items(), key=lambda x: x[1][1], reverse=my_player)
+            actions_connues = {e[2] for _, e in connus}
+            reste = [a for a in gen_actions_utiles(state, player, remaining_time, time_start, start) if a not in actions_connues]
+        else:
+            connus = []
+            actions_connues = []
+            reste = gen_actions_utiles(state, player, remaining_time, time_start, start)
+        
+        actions = [(e[2], s) for s, e in connus] + [(a, None) for a in reste]
+        #***)
+        cache_tree = {}
+        liste_cache_tree = []        
+        for action, enfant in actions:
+            if enfant is None:                       # not pre-generated: pay for it now, lazily
+                enfant = state.apply_action(action)
+            if type(action) == actions_quoridor.WallAction:
+                adder = 1
+            else:
+                adder = 0
+            if self._flat_cache.get(wallcount+adder).get(enfant) is not None and self._flat_cache.get(wallcount+adder).get(enfant)[2]>=depth-1:
+                sous_cache, impact, _ = self._flat_cache[wallcount+adder][enfant]
+            else:
+                impact, _, sous_cache = minimax(self, enfant, not my_player, alpha, beta, depth-1, inverse, player, remaining_time, time_start, start, max_depth, cache_etats.get(enfant), wallcount+adder)
+                self._flat_cache[wallcount+adder][enfant] = (sous_cache, impact, depth-1)
+
+            if my_player:      
+                
+                # Cache generation
+                if max_depth == depth:
+                    liste_cache_tree.extend(sous_cache.items())
+                else:
+                    liste_cache_tree.append((enfant, (sous_cache, impact, action)))
+   
+                if maximum < impact:
+                    maximum = impact
+                    meilleure_action = action
+                alpha = max(alpha, impact)
+                if beta <= alpha:
+                    break
             
-            # Cache generation
-            if max_depth == depth :
-                liste_state.extend(sous_cache.items())
-            else :
-                liste_state.append((enfant, (sous_cache, impact, max_depth-depth)))
+            else:
+                
 
+                if max_depth == depth :
+                    liste_cache_tree.extend(sous_cache.items())
+                else :
+                    liste_cache_tree.append((enfant, (sous_cache, impact, action)))
 
-            if minimum > impact:
-                minimum = impact
-                meilleure_action = action
-            beta = min(beta, impact)
+                if minimum > impact:
+                    minimum = impact
+                    meilleure_action = action
+                beta = min(beta, impact)
 
-            if beta <= alpha :
-                break
-        cache = dict(liste_state)
-        return (minimum, meilleure_action, cache)
+                if beta <= alpha :
+                    break
+
+        
+        cache_tree = dict(liste_cache_tree)
+
+        return (maximum, meilleure_action, cache_tree)
+
 
 
 #Delta dist_estimee
@@ -212,6 +239,7 @@ class MyPlayer(PlayerQuoridor):
             name (str, optional): Name of the player (default is "bob")
         """
         self._cache = {}
+        self._flat_cache = {}
         super().__init__(piece_type, goal_row, name)
 
     
@@ -230,7 +258,9 @@ class MyPlayer(PlayerQuoridor):
         Quantifier la valeur d'un pas comme 1/(dist_restante+nbr_de_mur_adv) et valeur d'un placement de mur minimax rallongement adversaire en calc la valeurde ces pas, donc
         """
         start_time = time.perf_counter()
-
+        wallcount = len(current_state.rep.walls)
+        self._flat_cache.pop(wallcount-1, None)
+        self._flat_cache.pop(wallcount-2, None)
         #agencement des formules
         if current_state.active_player.id == current_state.players[1].id :
             inverse = -1
@@ -240,26 +270,6 @@ class MyPlayer(PlayerQuoridor):
             player = current_state.players[0].id
 
         
-        '''
-        #Opening
-        if current_state.get_step()/2 < 3:
-
-            moves = tuple(current_state._legal_moves())
-            for move in moves:
-                newstate = current_state.apply_action(move)
-                if newstate._shortest_path(current_state.active_player) < current_state._shortest_path(current_state.active player):
-                    meilleure_action = move
-            
-            
-
-        elif current_state.get_step()/2 == 3 or current_state()/2 == 3.5:
-            if inverse == 1:
-                if 
-
-
-        #Minimax
-        else:
-        '''
         start = False
         if current_state.get_step()/2 < 3:
             start = True
@@ -280,10 +290,9 @@ class MyPlayer(PlayerQuoridor):
             depth = 3
 
         #Minimax
-        _, resultat, cache = minimax(self, current_state, True, alpha, beta, depth, inverse, player, remaining_time, start_time, start, depth)
+        _, resultat, cache = minimax(self, current_state, True, alpha, beta, depth, inverse, player, remaining_time, start_time, start, depth, liste_etats, wallcount)
         self._cache = cache
         meilleure_action = resultat
-        print(f"\n\n\n {liste_etats}")
 
 
         return meilleure_action
