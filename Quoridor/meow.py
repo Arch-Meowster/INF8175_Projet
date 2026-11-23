@@ -16,7 +16,7 @@ from seahorse.game.action import Action
 from game_state_quoridor import GameStateQuoridor
 from seahorse.utils.custom_exceptions import MethodNotImplementedError
 import time
-
+from collections import deque
 
 #==== Heuristique =====
 
@@ -57,6 +57,24 @@ def evaluer(state, inverse):
         
     return score
 
+def chemin_adversaire(state, joueur):
+    depart = state.rep.pawn_positions[joueur.id]
+    etats = deque([(depart, [depart])])
+    visitees = {depart}
+
+    while etats:
+        position, chemin = etats.popleft()
+
+        if position[0] == joueur.get_goal_row():
+            return chemin
+
+        for voisin in state._reachable_neighbours(position):
+            if voisin not in visitees:
+                visitees.add(voisin)
+                etats.append((voisin, chemin + [voisin]))
+    return []
+
+
 """
 Trouver la distance estimée restante a parcourir en ce moment moyenne sur nombre de murs restants, plus tard ML ou modélisation probabiliste.
 Utiliser le tours, donc si égale, fois 0.5 pour le joeur en deuxième à jouer, pour favoriser le joueur en premier.
@@ -76,10 +94,10 @@ Only compute walls that are sticked to player or other wall + 1 space and 1 spac
     qui étaient inneficace et illisible donc l'ia s'est occupé de générer la même logique sous forme de "set".
 """
 
-#***(
 H, V = actions_quoridor.Orientation.HORIZONTAL, actions_quoridor.Orientation.VERTICAL
-#***)
 
+# combien de pas du chemin adverse on essaie de bloquer
+NB_PAS = 4 
 def gen_actions_utiles(state, player, remaining_time, time_start, opening):
 
     time_left = remaining_time - (time.perf_counter() - time_start)
@@ -89,12 +107,25 @@ def gen_actions_utiles(state, player, remaining_time, time_start, opening):
 
     #***(
     if state.rep.remaining_walls[state.active_player.id] != 0 and time_left > 5 and opening == False: # S'il reste des murs et s'il reste plus de 5 secondes
-        
-        for r, c in state.rep.pawn_positions.values():
-            candidats.update([
-                (r, c - 1, H), (r, c - 2, H), (r - 1, c - 1, H), (r - 1, c - 2, H),
-                (r - 1, c, V), (r - 2, c, V), (r - 1, c - 1, V), (r - 2, c - 1, V),
-            ])
+
+        victime = state._opponent(state.active_player)
+        r, c = state.rep.pawn_positions[victime.id]
+        chemin = chemin_adversaire(state, victime)
+
+        # Regarder les murs autour du joueur adverse pour générer des candidats de placement de murs
+        for dr, dc in state.DIRECTIONS:
+            voisine = (r + dr, c + dc)
+            if not (0 <= voisine[0] < state.rep.dimension and 0 <= voisine[1] < state.rep.dimension):
+                continue
+            for w in state._candidate_blocking_walls((r, c), voisine):
+                candidats.add((w.row, w.col, w.orientation))
+
+        # Regarde le chemin de l'adversaire et génère des candidats de placement de murs pour bloquer le chemin
+        for i in range(min(NB_PAS, len(chemin) -1)):
+            depart = chemin[i]
+            arrivee = chemin[i+1]
+            for w in state._candidate_blocking_walls(depart, arrivee):
+                candidats.add((w.row, w.col, w.orientation))
 
         for w in state.rep.walls:
             r, c = w.row, w.col
