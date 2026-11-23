@@ -16,29 +16,70 @@ from seahorse.game.action import Action
 from game_state_quoridor import GameStateQuoridor
 from seahorse.utils.custom_exceptions import MethodNotImplementedError
 import time
+from collections import deque
 """
 Trouver la distance estimée restante a parcourir en ce moment moyenne sur nombre de murs restants, plus tard ML ou modélisation probabiliste.
 Utiliser le tours, donc si égale, fois 0.5 pour le joeur en deuxième à jouer, pour favoriser le joueur en premier.
 
 """
-def dist_estimee (state: GameStateQuoridor, player):
+# Heuristique 
 
-    chemin = state._shortest_path(player)
-    """
-    remaining_walls = state.rep.remaining_walls
+POIDS = {"distance": 1, "walls": 0.5, "turns": 0.5}
 
-    if player == state.players[0]:
-        murs_restants_adv = remaining_walls[state.players[1].id]
-    else :
-        murs_restants_adv = remaining_walls[state.players[0].id]
-    """
-    return chemin
-# 2.5 a revérifier par regression linéaire et ajuster avec gamestate par ML
+def evaluer(state, inverse):
+
+    score = 0
+    
+    if inverse == 1:
+        moi = state.players[0]
+    else:
+        moi = state.players[1]
+
+    adv = state._opponent(moi)
+
+    d_moi = state._shortest_path(moi)
+    d_adv = state._shortest_path(adv)
+
+    moi_murs = state.rep.remaining_walls[moi.id]
+    adv_murs = state.rep.remaining_walls[adv.id]
+
+    heuristique = {
+        "distance": d_adv - d_moi,
+        "walls": moi_murs - adv_murs,
+        "turns": 1 if state.active_player == moi else -1
+    }
+
+    # S'il n'y as plus de mur, c'est juste le plus court chemin qui compte
+    if moi_murs == 0 and adv_murs == 0:
+        if d_moi < d_adv or (d_moi == d_adv and state.active_player == moi):
+            score += 50
+        else:
+            score += -50
+
+    for nom, valeur in heuristique.items():
+        score += valeur * POIDS[nom]
+        
+    return score
+
+# bfs pour trouver le chemin de l'adversaire, utilisé pour générer des murs bloquants
+def chemin_adversaire(state, joueur):
+    depart = state.rep.pawn_positions[joueur.id]
+    etats = deque([(depart, [depart])])
+    visitees = {depart}
+
+    while etats:
+        position, chemin = etats.popleft()
+
+        if position[0] == joueur.get_goal_row():
+            return chemin
+
+        for voisin in state._reachable_neighbours(position):
+            if voisin not in visitees:
+                visitees.add(voisin)
+                etats.append((voisin, chemin + [voisin]))
+    return []
 
 
-"""
-Only compute walls that are sticked to player or other wall + 1 space and 1 space further for less possible outcomes
-"""
 
 """
     ***Cette boucle à été partiellement écrite par IA pour réduire l'engorgement de l'écran, la section touchée est ilustrée par des commentaires #***(), à noter 
@@ -50,9 +91,10 @@ Only compute walls that are sticked to player or other wall + 1 space and 1 spac
     qui étaient inneficace et illisible donc l'ia s'est occupé de générer la même logique sous forme de "set".
 """
 
-#***(
 H, V = actions_quoridor.Orientation.HORIZONTAL, actions_quoridor.Orientation.VERTICAL
-#***)
+
+# combien de pas du chemin adverse on essaie de bloquer
+NB_PAS = 4 
 
 def gen_actions_utiles(state, player, remaining_time, time_start, strat):
 
@@ -65,11 +107,25 @@ def gen_actions_utiles(state, player, remaining_time, time_start, strat):
     #***(
     if state.rep.remaining_walls[state.active_player.id] != 0 and time_left > 5 and strat == False: # S'il reste des murs et s'il reste plus de 5 secondes
         
-        for r, c in state.rep.pawn_positions.values():
-            candidats.update([
-                (r, c - 1, H), (r, c - 2, H), (r - 1, c - 1, H), (r - 1, c - 2, H),
-                (r - 1, c, V), (r - 2, c, V), (r - 1, c - 1, V), (r - 2, c - 1, V),
-            ])
+        victime = state._opponent(state.active_player)
+        r, c = state.rep.pawn_positions[victime.id]
+        chemin = chemin_adversaire(state, victime)
+
+        # Regarder les murs autour du joueur adverse pour générer des candidats de placement de murs
+        for dr, dc in state.DIRECTIONS:
+            voisine = (r + dr, c + dc)
+            if not (0 <= voisine[0] < state.rep.dimension and 0 <= voisine[1] < state.rep.dimension):
+                continue
+            for w in state._candidate_blocking_walls((r, c), voisine):
+                candidats.add((w.row, w.col, w.orientation))
+
+        # Regarde le chemin de l'adversaire et génère des candidats de placement de murs pour bloquer le chemin
+        for i in range(min(NB_PAS, len(chemin) -1)):
+            depart = chemin[i]
+            arrivee = chemin[i+1]
+            for w in state._candidate_blocking_walls(depart, arrivee):
+                candidats.add((w.row, w.col, w.orientation))
+
 
         for w in state.rep.walls:
             r, c = w.row, w.col
@@ -129,7 +185,7 @@ def minimax(self, state, my_player : bool, alpha, beta, depth, inverse, player, 
     #Depth reached?
 
     elif depth == 0:
-        return (delta_dist(state, inverse), None, {})
+        return (evaluer(state, inverse), None, {})
 
     
 
@@ -210,14 +266,6 @@ def minimax(self, state, my_player : bool, alpha, beta, depth, inverse, player, 
         return (maximum, meilleure_action, cache_tree)
 
 
-
-#Delta dist_estimee
-
-def delta_dist(state : GameStateQuoridor, inverse):
-    delta = inverse * (dist_estimee(state, state.players[1]) - dist_estimee(state, state.players[0]))
-    return delta
-
-#Minimax avec alpha-beta churning
 
 
 

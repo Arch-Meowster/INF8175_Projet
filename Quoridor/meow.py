@@ -80,9 +80,6 @@ Trouver la distance estimée restante a parcourir en ce moment moyenne sur nombr
 Utiliser le tours, donc si égale, fois 0.5 pour le joeur en deuxième à jouer, pour favoriser le joueur en premier.
 """
 
-"""
-Only compute walls that are sticked to player or other wall + 1 space and 1 space further for less possible outcomes
-"""
 
 """
     ***Cette boucle à été partiellement écrite par IA pour réduire l'engorgement de l'écran, la section touchée est ilustrée par des commentaires #***(), à noter 
