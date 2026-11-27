@@ -20,7 +20,7 @@ from collections import deque
 
 #==== Heuristique =====
 
-POIDS = {"distance": 1, "walls": 0.5, "turns": 0.5}
+POIDS = {"distance": 1, "walls": 1}
 
 def evaluer(state, inverse):
 
@@ -33,24 +33,36 @@ def evaluer(state, inverse):
 
     adv = state._opponent(moi)
 
-    d_moi = state._shortest_path(moi)
-    d_adv = state._shortest_path(adv)
+    d_moi = distance_reel(state, moi)
+    d_adv = distance_reel(state, adv)
 
     moi_murs = state.rep.remaining_walls[moi.id]
     adv_murs = state.rep.remaining_walls[adv.id]
 
     heuristique = {
         "distance": d_adv - d_moi,
-        "walls": moi_murs - adv_murs,
-        "turns": 1 if state.active_player == moi else -1
+        "walls": moi_murs - adv_murs
     }
 
-    # S'il n'y as plus de mur, c'est juste le plus court chemin qui compte
-    if moi_murs == 0 and adv_murs == 0:
-        if d_moi < d_adv or (d_moi == d_adv and state.active_player == moi):
-            score += 50
-        else:
-            score += -50
+    # Déterminer si c'est le tour du joueur actif
+    if state.active_player.id == moi.id:
+        mon_tour = True
+    else:
+        mon_tour = False
+
+    # Détermine si le joueur actif est en position de gagner
+    if d_moi < d_adv or (d_moi == d_adv and mon_tour):
+        je_gagne = True
+    else:
+        je_gagne = False
+
+    # Si le joueur actif est en position de gagner boost le score, sinon le diminue
+    if adv_murs == 0 and je_gagne:
+        score += 50
+
+    elif moi_murs == 0 and not je_gagne:
+        score += -50
+
 
     for nom, valeur in heuristique.items():
         score += valeur * POIDS[nom]
@@ -74,6 +86,32 @@ def chemin_adversaire(state, joueur):
                 etats.append((voisin, chemin + [voisin]))
     return []
 
+def distance_reel(state, joueur):
+    # Calcule la distance du joueur à la fin en prenant en compte le saut par dessus l'autre
+    # pion quand ils sont collées et que c'est au joueur actif de jouer.
+
+    distance = state._shortest_path(joueur)
+
+    if state.active_player.id != joueur.id:
+        return distance
+
+    adversaire = state._opponent(joueur)
+    r1, c1 = state.rep.pawn_positions[joueur.id]
+    r2, c2 = state.rep.pawn_positions[adversaire.id]
+
+    # pion pas collées
+    if abs(r1 - r2) + abs(c1 - c2) != 1:
+        return distance
+
+    # pion collées
+    for action in state._legal_moves():
+        nouvel_etat = state.apply_action(action)
+        reste = nouvel_etat._shortest_path(joueur)
+        if 1 + reste < distance:
+            distance = 1 + reste
+
+    return distance
+
 
 """
 Trouver la distance estimée restante a parcourir en ce moment moyenne sur nombre de murs restants, plus tard ML ou modélisation probabiliste.
@@ -95,7 +133,7 @@ H, V = actions_quoridor.Orientation.HORIZONTAL, actions_quoridor.Orientation.VER
 
 # combien de pas du chemin adverse on essaie de bloquer
 NB_PAS = 4 
-def gen_actions_utiles(state, player, remaining_time, time_start, opening):
+def gen_actions_utiles(state, remaining_time, time_start, opening):
 
     time_left = remaining_time - (time.perf_counter() - time_start)
     mouvements = tuple(state._legal_moves())
@@ -161,7 +199,7 @@ def gen_actions_utiles(state, player, remaining_time, time_start, opening):
     #***)
     return mouvements + tuple(murs)
 
-def minimax(self, state, my_player : bool, alpha, beta, depth, inverse, player, remaining_time, time_start, start, etats_finaux):
+def minimax(self, state, my_player : bool, alpha, beta, depth, inverse, remaining_time, time_start, start, etats_finaux):
 
     #Winner?
 
@@ -188,11 +226,11 @@ def minimax(self, state, my_player : bool, alpha, beta, depth, inverse, player, 
 
     elif my_player :
         maximum = -1000
-        actions = gen_actions_utiles(state, player, remaining_time, time_start, start)
+        actions = gen_actions_utiles(state, remaining_time, time_start, start)
         
         for action in actions :
             applied_action = state.apply_action(action)
-            impact = minimax(self, applied_action, False, alpha, beta, depth-1, inverse, player, remaining_time, time_start, start, etats_finaux)[0]
+            impact = minimax(self, applied_action, False, alpha, beta, depth-1, inverse, remaining_time, time_start, start, etats_finaux)[0]
             if maximum < impact:
                 maximum = impact
                 meilleure_action = action
@@ -206,10 +244,10 @@ def minimax(self, state, my_player : bool, alpha, beta, depth, inverse, player, 
 
     else :
         minimum = 1000
-        actions = gen_actions_utiles(state, player, remaining_time, time_start, start)
+        actions = gen_actions_utiles(state, remaining_time, time_start, start)
         for action in actions :
             applied_action = state.apply_action(action)
-            impact = minimax(self, applied_action, True, alpha, beta, depth-1, inverse, player, remaining_time, time_start, start, etats_finaux)[0]
+            impact = minimax(self, applied_action, True, alpha, beta, depth-1, inverse, remaining_time, time_start, start, etats_finaux)[0]
             if depth == 1:
                 etats_finaux.append((applied_action, impact))
             if minimum > impact:
@@ -267,10 +305,8 @@ class MyPlayer(PlayerQuoridor):
         #agencement des formules
         if current_state.active_player.id == current_state.players[1].id :
             inverse = -1
-            player = current_state.players[1].id
         else : 
             inverse = 1
-            player = current_state.players[0].id
 
         
         '''
@@ -320,7 +356,7 @@ class MyPlayer(PlayerQuoridor):
         etats_finaux = []
 
         #Minimax
-        resultat = minimax(self, current_state, True, alpha, beta, depth, inverse, player, remaining_time, start_time, start, etats_finaux)
+        resultat = minimax(self, current_state, True, alpha, beta, depth, inverse, remaining_time, start_time, start, etats_finaux)
         meilleure_action = resultat[1]
  
         print(f"{len(liste_score)}\n\n")
